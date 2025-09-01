@@ -1,5 +1,6 @@
-use crate::utils::questions::{ask_for_choices, ProjectChoices};
+use crate::utils::questions::{ProjectChoices, ask_for_choices};
 use indicatif::{ProgressBar, ProgressStyle};
+use inquire::{MultiSelect, Select};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -9,7 +10,6 @@ pub fn generate_new_project(name: &str) {
     println!("Génération du projet '{}'...", name);
 
     let choices = ask_for_choices();
-
 
     let project_dir = Path::new(name);
     let pb_dirs = ProgressBar::new_spinner();
@@ -52,15 +52,16 @@ pub fn generate_new_project(name: &str) {
     }
     dependencies.push(("dotenv", "^16.0.0"));
 
-
     let dev_dependencies = vec![("nodemon", "^2.0.0")];
 
-    let dependencies_str: String = dependencies.iter()
+    let dependencies_str: String = dependencies
+        .iter()
         .map(|(dep, ver)| format!("    \"{}\": \"{}\"", dep, ver))
         .collect::<Vec<_>>()
         .join(",\n");
 
-    let dev_dependencies_str: String = dev_dependencies.iter()
+    let dev_dependencies_str: String = dev_dependencies
+        .iter()
         .map(|(dep, ver)| format!("    \"{}\": \"{}\"", dep, ver))
         .collect::<Vec<_>>()
         .join(",\n");
@@ -82,9 +83,7 @@ pub fn generate_new_project(name: &str) {
 {}
   }}
 }}"#,
-        name,
-        dependencies_str,
-        dev_dependencies_str
+        name, dependencies_str, dev_dependencies_str
     );
     fs::write(project_dir.join("package.json"), package_json_content)
         .expect("Échec de l'écriture de package.json");
@@ -130,7 +129,8 @@ pub fn generate_new_project(name: &str) {
             .expect("Échec de l'écriture du template HTML");
     }
 
-    index_js_content.push_str("\napp.get('/', (req, res) => {\n  res.send('Hello World!');\n});\n\n");
+    index_js_content
+        .push_str("\napp.get('/', (req, res) => {\n  res.send('Hello World!');\n});\n\n");
 
     if choices.db_choice == "PostgreSQL" {
         index_js_content.push_str("// Logique de connexion à PostgreSQL...\n");
@@ -156,7 +156,7 @@ pub fn generate_new_project(name: &str) {
         .arg("install")
         .current_dir(project_dir)
         .output();
-    
+
     pb_install.finish_with_message("Dépendances installées ! ✅");
 
     match output {
@@ -170,11 +170,112 @@ pub fn generate_new_project(name: &str) {
                 println!("  npm run dev");
             } else {
                 eprintln!("\nErreur lors de l'installation des dépendances.");
-                eprintln!("Sortie d'erreur de npm:\n{}", String::from_utf8_lossy(&output.stderr));
+                eprintln!(
+                    "Sortie d'erreur de npm:\n{}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
             }
         }
         Err(e) => {
             eprintln!("\nErreur lors de l'exécution de npm: {}", e);
         }
     }
+}
+
+// Nouvelle fonction pour générer un contrôleur
+pub fn generate_controller(name: &str) {
+    println!("Génération du contrôleur pour l'entité '{}'...", name);
+
+    // 1. Demander à l'utilisateur quelles méthodes CRUD il souhaite inclure.
+    let crud_methods = vec!["create", "read (all)", "read (one)", "update", "delete"];
+    let methods_to_generate = MultiSelect::new("Choisissez les méthodes à inclure :", crud_methods)
+        .prompt()
+        .unwrap();
+
+    // 2. Définir le chemin du fichier du contrôleur.
+    let file_path = format!("src/controllers/{}.js", name.to_lowercase());
+
+    // 3. Construire le contenu du fichier
+    let mut controller_content = String::new();
+    controller_content.push_str("const express = require('express');\n");
+    controller_content.push_str(&format!("const router = express.Router();\n\n"));
+
+    for method in methods_to_generate {
+        match method {
+            "create" => {
+                controller_content.push_str(&format!(
+                    r#"router.post('/', (req, res) => {{
+  // Logique pour créer un(e) {}
+  res.send('Créer un(e) {}');
+}});
+
+"#,
+                    name.to_lowercase(),
+                    name.to_lowercase()
+                ));
+            }
+            "read (all)" => {
+                controller_content.push_str(&format!(
+                    r#"router.get('/', (req, res) => {{
+  // Logique pour récupérer tou(te)s les {}
+  res.send('Récupérer tou(te)s les {}');
+}});
+
+"#,
+                    name.to_lowercase(),
+                    name.to_lowercase()
+                ));
+            }
+            "read (one)" => {
+                controller_content.push_str(&format!(
+                    r#"router.get('/:id', (req, res) => {{
+  // Logique pour récupérer un(e) {} par son ID
+  const {{ id }} = req.params;
+  res.send('Récupérer le/la {} avec l\'ID ' + id);
+}});
+
+"#,
+                    name.to_lowercase(),
+                    name.to_lowercase()
+                ));
+            }
+            "update" => {
+                controller_content.push_str(&format!(
+                    r#"router.put('/:id', (req, res) => {{
+  // Logique pour mettre à jour un(e) {} par son ID
+  const {{ id }} = req.params;
+  res.send('Mettre à jour le/la {} avec l\'ID ' + id);
+}});
+
+"#,
+                    name.to_lowercase(),
+                    name.to_lowercase()
+                ));
+            }
+            "delete" => {
+                controller_content.push_str(&format!(
+                    r#"router.delete('/:id', (req, res) => {{
+  // Logique pour supprimer un(e) {} par son ID
+  const {{ id }} = req.params;
+  res.send('Supprimer le/la {} avec l\'ID ' + id);
+}});
+
+"#,
+                    name.to_lowercase(),
+                    name.to_lowercase()
+                ));
+            }
+            _ => {}
+        }
+    }
+
+    // Ajouter la ligne d'exportation
+    controller_content.push_str("module.exports = router;");
+
+    // 4. Écrire le contenu dans le fichier.
+    fs::write(&file_path, controller_content).expect("Échec de l'écriture du contrôleur.");
+    println!(
+        "Contrôleur '{}' généré avec succès dans {} ✅",
+        name, file_path
+    );
 }

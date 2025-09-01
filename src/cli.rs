@@ -15,4 +15,19 @@ pub enum Commands {
         /// Le nom du projet
         name: String,
     },
+
+    /// Crée un nouveau contrôleur pour une entité
+    Generate {
+        #[command(subcommand)]
+        command: GenerateCommands,
+    }
+}
+
+#[derive(Subcommand)]
+pub enum GenerateCommands {
+    /// Crée un nouveau contrôleur pour une entité
+    Controller {
+        /// Le nom de l'entité (ex: User)
+        name: String,
+    },
 }
